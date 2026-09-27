@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sudoku Together</title>
+  <meta name="description" content="Play Sudoku with friends in real time — co-op or versus.">
+  <meta name="theme-color" content="#4c6ef5">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%234c6ef5'/><text x='16' y='23' font-size='20' font-family='Arial' font-weight='700' fill='white' text-anchor='middle'>9</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+      <symbol id="i-erase" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></symbol>
+      <symbol id="i-wand" viewBox="0 0 24 24"><path d="m15 4 1.4 2.6L19 8l-2.6 1.4L15 12l-1.4-2.6L11 8l2.6-1.4Z"/><path d="m3 21 9-9"/><path d="M20 15v4"/><path d="M18 17h4"/></symbol>
+      <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8Z"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- Options shared by the lobby and the "New game" dialog -->
+  <template id="optsTpl">
+    <div class="field">
+      <span class="field-label">Difficulty</span>
+      <div class="seg" data-opt="difficulty">
+        <button type="button" data-val="easy">Easy</button>
+        <button type="button" data-val="medium">Medium</button>
+        <button type="button" data-val="hard">Hard</button>
+        <button type="button" data-val="expert">Expert</button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="field-label">Mode</span>
+      <div class="seg seg-tall" data-opt="mode">
+        <button type="button" data-val="coop"><strong>🤝 Co-op</strong><small>Solve one board together</small></button>
+        <button type="button" data-val="versus"><strong>⚔️ Versus</strong><small>Race on the same puzzle</small></button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="field-label">Mistake limit</span>
+      <div class="seg" data-opt="mistakeLimit">
+        <button type="button" data-val="3">3</button>
+        <button type="button" data-val="5">5</button>
+        <button type="button" data-val="0">No limit</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- ============ LOBBY ============ -->
+  <div id="lobby" class="screen">
+    <button class="icon-btn theme-toggle floating" title="Toggle dark mode" aria-label="Toggle dark mode"><svg><use href="#i-moon"/></svg></button>
+    <div class="lobby-card">
+      <div class="brand">
+        <div class="brand-grid" aria-hidden="true">
+          <span>5</span><span></span><span>3</span><span></span><span>7</span><span></span><span>9</span><span></span><span>1</span>
+        </div>
+        <div>
+          <h1>Sudoku <span>Together</span></h1>
+          <p class="tagline">Real-time Sudoku with friends.</p>
+        </div>
+      </div>
+
+      <label class="field">
+        <span class="field-label">Your name</span>
+        <input id="nameInput" maxlength="16" autocomplete="nickname" spellcheck="false">
+      </label>
+
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="create" role="tab">Create game</button>
+        <button type="button" class="tab" data-tab="join" role="tab">Join game</button>
+      </div>
+
+      <section id="createPanel" class="tab-panel">
+        <div id="lobbyOpts"></div>
+        <button id="createBtn" class="btn primary block">Create game</button>
+        <p class="fineprint">You'll get a link to share with friends. You can also play solo.</p>
+      </section>
+
+      <section id="joinPanel" class="tab-panel hidden">
+        <label class="field">
+          <span class="field-label">Room code</span>
+          <input id="codeInput" class="code-input" maxlength="5" placeholder="ABCDE" autocomplete="off" spellcheck="false">
+        </label>
+        <button id="joinBtn" class="btn primary block">Join game</button>
+        <p class="fineprint">Ask your friend for the 5-letter code, or just open the link they sent you.</p>
+      </section>
+    </div>
+  </div>
+
+  <!-- ============ GAME ============ -->
+  <div id="game" class="screen hidden">
+    <header class="topbar">
+      <button id="leaveBtn" class="icon-btn" title="Back to lobby" aria-label="Back to lobby"><svg><use href="#i-back"/></svg></button>
+      <div class="topbar-title">Sudoku <span>Together</span></div>
+      <div class="topbar-actions">
+        <button id="inviteBtn" class="chip" title="Copy invite link">
+          <svg><use href="#i-link"/></svg><span>Room</span> <strong id="roomCode">-----</strong>
+        </button>
+        <button id="helpBtn" class="icon-btn" title="How to play" aria-label="How to play"><svg><use href="#i-help"/></svg></button>
+        <button class="icon-btn theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode"><svg><use href="#i-moon"/></svg></button>
+      </div>
+    </header>
+
+    <div id="offline" class="offline hidden">Connection lost — reconnecting…</div>
+
+    <main class="layout">
+      <section class="play">
+        <div class="statusbar">
+          <div class="badges">
+            <span id="diffBadge" class="badge">Easy</span>
+            <span id="modeBadge" class="badge soft">Co-op</span>
+          </div>
+          <div class="stat"><span class="stat-label">Mistakes</span><span id="mistakes">0/3</span></div>
+          <div class="stat timer">
+            <span id="timer">00:00</span>
+            <button id="pauseBtn" class="icon-btn small" title="Pause (P)" aria-label="Pause"><svg><use href="#i-pause"/></svg></button>
+          </div>
+        </div>
+
+        <div class="board-wrap" id="boardWrap">
+          <div id="board" class="board" role="grid" aria-label="Sudoku board"></div>
+          <div id="pauseOverlay" class="pause-overlay hidden">
+            <div>
+              <p id="pauseText">Paused</p>
+              <button id="resumeBtn" class="btn primary"><svg><use href="#i-play"/></svg> Resume</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="undoBtn" class="action" title="Undo (Ctrl+Z)"><svg><use href="#i-undo"/></svg><span>Undo</span></button>
+          <button id="eraseBtn" class="action" title="Erase (Backspace)"><svg><use href="#i-erase"/></svg><span>Erase</span></button>
+          <button id="notesBtn" class="action" title="Notes (N)"><svg><use href="#i-pencil"/></svg><span>Notes</span><em id="notesState">OFF</em></button>
+          <button id="autoBtn" class="action" title="Fill in all possible notes (A)"><svg><use href="#i-wand"/></svg><span>Auto notes</span></button>
+          <button id="hintBtn" class="action" title="Hint (H)"><svg><use href="#i-bulb"/></svg><span>Hint</span><em id="hintCount">3</em></button>
+        </div>
+
+        <div id="numpad" class="numpad"></div>
+      </section>
+
+      <aside class="side">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Players</h2>
+            <button id="newGameBtn" class="btn small"><svg><use href="#i-plus"/></svg> New game</button>
+          </div>
+          <ul id="players" class="players"></ul>
+        </div>
+
+        <div class="panel chat">
+          <div class="panel-head"><h2>Chat</h2></div>
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <div class="reactions">
+            <button type="button">👍</button><button type="button">🎉</button><button type="button">🔥</button>
+            <button type="button">😅</button><button type="button">🤔</button><button type="button">👏</button>
+          </div>
+          <form id="chatForm" class="chat-form">
+            <input id="chatInput" maxlength="200" placeholder="Say something…" autocomplete="off">
+            <button class="icon-btn" aria-label="Send"><svg><use href="#i-send"/></svg></button>
+          </form>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+  <div id="toasts" class="toasts"></div>
+  <canvas id="confetti" class="confetti"></canvas>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
